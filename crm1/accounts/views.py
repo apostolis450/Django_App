@@ -2,8 +2,28 @@ from django.shortcuts import render, redirect
 from django.http import  HttpResponse
 from django.forms import inlineformset_factory
 from .models import *
-from .forms import OrderForm
+from .forms import OrderForm,CreateUserForm
+from .filters import OrderFilter
+from django.contrib.auth.forms import UserCreationForm
 # Create your views here.
+
+def registerPage(request):
+    form = CreateUserForm()
+
+    if request.method == 'POST':
+        form = CreateUserForm(request.POST)
+        if form.is_valid():
+            form.save()
+
+    context = {'form': form}
+    return render(request, 'accounts/register.html', context)
+
+def loginPage(request):
+    context = {}
+    return render(request, 'accounts/login.html', context)
+
+
+
 def home(request):
     orders = Order.objects.all()
     customers = Customer.objects.all()
@@ -33,9 +53,13 @@ def customer(request, pk):
     orders = customer.order_set.all()
     orders_count = orders.count()
 
+    myFilter = OrderFilter(request.GET, queryset=orders)
+    orders = myFilter.qs #filtering the result and resetting the variable
+
     context = {'customer': customer, 
                 'orders':orders,
                 'orders_count':orders_count,
+                'myFilter':myFilter,
                 }
     return render(request, 'accounts/customer.html', context)
 
@@ -43,7 +67,7 @@ def createOrder(request, pk):
     OrderFormSet = inlineformset_factory(Customer,Order, fields=('product', 'status')
     , extra=10)
     customer = Customer.objects.get(id=pk)
-    
+    formset = OrderFormSet(queryset=Order.objects.none(), instance=customer)
     form = OrderForm(initial={'customer':customer})
     if request.method == 'POST':
         #form = OrderForm(request.POST)
